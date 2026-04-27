@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eventos Inmersivos — Doble Línea de Tiempo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#04050d;--bg2:#070810;--bg3:#0a0c18;
+  --cyan:#00E5FF;--cyan2:#00BDD4;
+  --violet:#8B5CF6;--violet2:#6D28D9;
+  --white:#F0F0EE;--off:#B8BDC8;
+  --muted:#50576A;--muted2:#7A8394;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.11);
+  --glow-c:rgba(0,229,255,0.22);--glow-v:rgba(139,92,246,0.22);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--white);font-family:'Outfit',sans-serif;font-weight:300;line-height:1.65;overflow-x:hidden}
+
+.grid-bg{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(255,255,255,0.016) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.016) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 30%,transparent 100%)}
+#cg{position:fixed;top:0;left:0;width:800px;height:800px;border-radius:50%;background:radial-gradient(circle at center,rgba(0,229,255,0.05) 0%,rgba(139,92,246,0.03) 40%,transparent 68%);pointer-events:none;z-index:9997;transform:translate(-50%,-50%);transition:transform 0.08s linear;will-change:transform}
+#pc{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:0.4}
+
+#fcta{position:fixed;bottom:2rem;right:2rem;z-index:500;display:flex;align-items:center;gap:0.6rem;padding:0.72rem 1.4rem;background:linear-gradient(130deg,var(--cyan),var(--cyan2));color:#040610;font-family:'Outfit',sans-serif;font-weight:700;font-size:0.78rem;letter-spacing:0.07em;border:none;border-radius:100px;cursor:pointer;text-decoration:none;box-shadow:0 0 28px var(--glow-c),0 4px 20px rgba(0,0,0,0.5);opacity:0;transform:translateY(20px);transition:all .4s cubic-bezier(.4,0,.2,1)}
+#fcta.show{opacity:1;transform:translateY(0)}
+#fcta:hover{transform:translateY(-3px);box-shadow:0 0 50px var(--glow-c)}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;justify-content:space-between;align-items:center;padding:1rem 5vw;background:rgba(4,5,13,0.82);backdrop-filter:blur(28px);border-bottom:0.5px solid var(--border)}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:0.14em;background:linear-gradient(90deg,var(--white) 40%,var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.nav-links{display:flex;gap:2.2rem;list-style:none;align-items:center}
+.nav-links a{font-size:0.8rem;font-weight:400;color:var(--muted2);text-decoration:none;letter-spacing:0.05em;transition:color .2s}
+.nav-links a:hover{color:var(--white)}
+.nav-pill{font-size:0.78rem;font-weight:500;letter-spacing:0.06em;padding:0.48rem 1.3rem;border:0.5px solid rgba(0,229,255,0.4);border-radius:100px;color:var(--cyan);text-decoration:none;transition:all .25s}
+.nav-pill:hover{background:rgba(0,229,255,0.08);box-shadow:0 0 20px var(--glow-c)}
+
+/* ── HERO ── */
+#hero{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:10rem 5vw 5rem;overflow:hidden}
+.hero-bg{position:absolute;inset:0;background-image:url('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1800&q=80');background-size:cover;background-position:center;filter:brightness(0.2) saturate(1.4)}
+.hero-mesh{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 50% -5%,rgba(0,229,255,0.12) 0%,transparent 55%),radial-gradient(ellipse 50% 50% at 90% 90%,rgba(139,92,246,0.14) 0%,transparent 55%),linear-gradient(0deg,rgba(4,5,13,1) 0%,transparent 30%,transparent 70%,rgba(4,5,13,0.8) 100%)}
+.scan-line{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,rgba(0,229,255,0.3) 30%,rgba(0,229,255,0.5) 50%,rgba(0,229,255,0.3) 70%,transparent 100%);animation:scan 6s ease-in-out infinite;pointer-events:none}
+@keyframes scan{0%{top:20%;opacity:0}10%{opacity:1}90%{opacity:1}100%{top:80%;opacity:0}}
+.badge{display:inline-flex;align-items:center;gap:0.6rem;font-family:'Space Mono',monospace;font-size:0.64rem;letter-spacing:0.22em;color:var(--cyan);text-transform:uppercase;margin-bottom:2rem;background:rgba(0,229,255,0.07);border:0.5px solid rgba(0,229,255,0.22);padding:0.4rem 1rem;border-radius:100px;position:relative;z-index:1}
+.badge-dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:blink 2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+h1.display{font-family:'Bebas Neue',sans-serif;font-size:clamp(4.5rem,12vw,10rem);line-height:0.9;letter-spacing:0.01em;margin-bottom:0.8rem;position:relative;z-index:1}
+.grad-text{background:linear-gradient(110deg,var(--cyan) 0%,#A78BFA 80%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub2{font-family:'Bebas Neue',sans-serif;font-size:clamp(3rem,8vw,6.5rem);letter-spacing:0.01em;line-height:0.95;color:rgba(240,240,238,0.2);margin-bottom:2rem;position:relative;z-index:1}
+.hero-sub{font-size:1.05rem;color:var(--muted2);max-width:520px;margin-bottom:3rem;line-height:1.78;position:relative;z-index:1}
+#tw{border-right:2px solid var(--cyan);padding-right:3px;animation:cr .75s step-end infinite}
+@keyframes cr{0%,100%{border-color:transparent}50%{border-color:var(--cyan)}}
+.cta-row{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;position:relative;z-index:1;margin-bottom:5rem}
+.btn-primary{display:inline-flex;align-items:center;gap:0.5rem;padding:0.9rem 2.2rem;background:linear-gradient(130deg,var(--cyan),var(--cyan2));color:#040610;font-family:'Outfit',sans-serif;font-weight:700;font-size:0.88rem;letter-spacing:0.07em;border:none;border-radius:100px;cursor:pointer;text-decoration:none;box-shadow:0 0 32px var(--glow-c),0 4px 20px rgba(0,0,0,0.4);transition:all .3s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
+.btn-primary::after{content:'';position:absolute;inset:0;background:linear-gradient(130deg,rgba(255,255,255,.2),transparent);opacity:0;transition:opacity .3s}
+.btn-primary:hover{transform:translateY(-3px);box-shadow:0 0 55px var(--glow-c)}.btn-primary:hover::after{opacity:1}
+.btn-ghost{display:inline-flex;align-items:center;gap:0.5rem;padding:0.9rem 2.2rem;background:transparent;color:var(--white);font-family:'Outfit',sans-serif;font-weight:500;font-size:0.88rem;letter-spacing:0.05em;border:0.5px solid rgba(255,255,255,0.15);border-radius:100px;cursor:pointer;text-decoration:none;transition:all .3s}
+.btn-ghost:hover{background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.28)}
+.metrics-row{display:flex;gap:0;border:0.5px solid var(--border2);border-radius:18px;overflow:hidden;position:relative;z-index:1;background:rgba(4,5,13,0.6);backdrop-filter:blur(14px)}
+.metric{padding:1.6rem 3rem;border-right:0.5px solid var(--border);display:flex;flex-direction:column;align-items:center}
+.metric:last-child{border-right:none}
+.m-n{font-family:'Bebas Neue',sans-serif;font-size:3rem;letter-spacing:0.02em;background:linear-gradient(120deg,var(--white),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.m-l{font-size:0.68rem;color:var(--muted2);letter-spacing:0.1em;text-transform:uppercase;margin-top:0.2rem;font-family:'Space Mono',monospace}
+
+section{position:relative;z-index:1;padding:9rem 5vw}
+.sec-tag{font-family:'Space Mono',monospace;font-size:0.62rem;letter-spacing:0.22em;text-transform:uppercase;margin-bottom:1rem;display:block}
+.sec-h{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.5rem,5.5vw,4.2rem);letter-spacing:0.02em;line-height:0.98;margin-bottom:1rem}
+.sec-h span{background:linear-gradient(100deg,var(--cyan),#A78BFA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sec-sub{font-size:0.95rem;color:var(--muted2);max-width:480px;line-height:1.75;font-weight:300}
+.center{text-align:center}.center .sec-sub{margin:0 auto}
+
+/* ── DLT ── */
+#dlt{background:var(--bg2)}
+#dlt::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;background:linear-gradient(180deg,transparent,rgba(0,229,255,0.25),rgba(139,92,246,0.25),transparent);transform:translateX(-50%)}
+.dlt-wrap{max-width:1000px;margin:4rem auto 0;display:grid;grid-template-columns:1fr 70px 1fr;align-items:center}
+.dlt-card{background:rgba(8,9,18,0.85);border:0.5px solid var(--border);border-radius:20px;overflow:hidden;backdrop-filter:blur(12px)}
+.dlt-card.right{border-color:rgba(0,229,255,0.22);box-shadow:0 0 60px rgba(0,229,255,0.07)}
+.dlt-head{padding:1.6rem 2rem;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:0.8rem}
+.dlt-card.right .dlt-head{background:linear-gradient(135deg,rgba(0,229,255,0.07),rgba(139,92,246,0.04));border-bottom-color:rgba(0,229,255,0.15)}
+.track-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.track-dot.t{background:var(--muted)}.track-dot.r{background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.dlt-head h3{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:0.08em}
+.dlt-head p{font-size:0.74rem;color:var(--muted2)}
+.dlt-body{padding:1.8rem 2rem;display:flex;flex-direction:column;gap:1rem}
+.dlt-row{display:flex;align-items:flex-start;gap:0.75rem;font-size:0.86rem;line-height:1.55}
+.di{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.di.x{background:rgba(239,68,68,0.1);color:#EF4444}.di.ok{background:rgba(0,229,255,0.1);color:var(--cyan)}
+.vs-mid{display:flex;align-items:center;justify-content:center}
+.vs-ring{width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,0.03);border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;margin:auto;font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--muted2);letter-spacing:0.1em}
+
+/* ── BRAND STRIP ── */
+#brands{
+  position:relative;z-index:1;
+  padding:2.5rem 5vw;
+  background:var(--bg);
+  border-top:0.5px solid var(--border);
+  border-bottom:0.5px solid var(--border);
+  overflow:hidden;
+}
+.brands-label{font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:1.8rem}
+.brands-track{
+  display:flex;gap:4rem;align-items:center;
+  animation:scroll-x 25s linear infinite;
+  width:max-content;
+}
+.brands-track:hover{animation-play-state:paused}
+@keyframes scroll-x{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.brand-item{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.3rem;letter-spacing:0.15em;
+  color:var(--muted);white-space:nowrap;
+  transition:color .3s;
+}
+.brand-item:hover{color:var(--white)}
+.brands-fade-l,.brands-fade-r{
+  position:absolute;top:0;bottom:0;width:120px;pointer-events:none;z-index:2;
+}
+.brands-fade-l{left:0;background:linear-gradient(90deg,var(--bg),transparent)}
+.brands-fade-r{right:0;background:linear-gradient(270deg,var(--bg),transparent)}
+
+/* ── TIPOS ── */
+#tipos{background:var(--bg2)}
+.tipos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;max-width:1080px;margin:4rem auto 0}
+.tipo-card{border:0.5px solid var(--border);border-radius:22px;overflow:hidden;position:relative;cursor:default;transition:all .4s cubic-bezier(.4,0,.2,1)}
+.tipo-card:hover{transform:translateY(-7px);box-shadow:0 28px 70px rgba(0,0,0,0.6)}
+.tipo-card:hover .tipo-body{border-color:rgba(0,229,255,0.2)}
+.tipo-visual{height:280px;position:relative;overflow:hidden}
+.tipo-img{position:absolute;inset:0;background-size:cover;background-position:center;transition:transform .6s cubic-bezier(.4,0,.2,1)}
+.tipo-card:hover .tipo-img{transform:scale(1.06)}
+.tipo-dim{position:absolute;inset:0;background:rgba(4,5,13,0.5)}
+.tipo-color-bodas{position:absolute;inset:0;background:linear-gradient(145deg,rgba(200,150,255,0.12),rgba(255,220,150,0.06))}
+.tipo-color-corp{position:absolute;inset:0;background:linear-gradient(145deg,rgba(0,229,255,0.1),rgba(139,92,246,0.07))}
+.tipo-color-launch{position:absolute;inset:0;background:linear-gradient(145deg,rgba(139,92,246,0.15),rgba(0,229,255,0.05))}
+.tipo-overlay{position:absolute;inset:0;background:linear-gradient(0deg,rgba(7,8,16,1) 0%,rgba(7,8,16,0.2) 55%,transparent 80%)}
+.tipo-label-top{position:absolute;top:1.2rem;left:1.2rem;z-index:2;font-family:'Space Mono',monospace;font-size:0.58rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.5)}
+.tipo-body{padding:1.8rem 2rem 2.2rem;background:rgba(7,8,16,0.98);border-top:0.5px solid var(--border);transition:border-color .3s}
+.tipo-name{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.04em;margin-bottom:0.5rem}
+.tipo-desc{font-size:0.85rem;color:var(--muted2);line-height:1.65;margin-bottom:1.2rem}
+.tipo-tags{display:flex;flex-wrap:wrap;gap:0.4rem}
+.tag{font-family:'Space Mono',monospace;font-size:0.58rem;letter-spacing:0.1em;padding:0.22rem 0.6rem;border-radius:4px;text-transform:uppercase;border:0.5px solid var(--border);color:var(--muted2);transition:all .2s}
+.tipo-card:hover .tag{border-color:rgba(0,229,255,0.2);color:var(--off)}
+
+/* ── HOW IT WORKS ── */
+#how{background:var(--bg);overflow:hidden}
+.how-inner{max-width:1080px;margin:0 auto}
+.how-steps{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:0;margin-top:4rem;position:relative;
+}
+.how-steps::before{
+  content:'';position:absolute;top:32px;left:12.5%;right:12.5%;height:1px;
+  background:linear-gradient(90deg,var(--cyan),var(--violet));opacity:0.25;
+}
+.how-step{
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+  padding:0 1.5rem;position:relative;
+}
+.how-num-wrap{
+  width:64px;height:64px;border-radius:50%;
+  border:0.5px solid var(--border2);
+  background:rgba(7,8,16,0.95);
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:1.5rem;position:relative;z-index:1;
+  transition:all .3s;
+}
+.how-step:hover .how-num-wrap{border-color:rgba(0,229,255,0.4);box-shadow:0 0 20px var(--glow-c)}
+.how-num{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.04em;background:linear-gradient(120deg,var(--white),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.how-step-icon{margin-bottom:1rem}
+.how-step-icon svg{width:28px;height:28px;opacity:0.7}
+.how-step-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:0.06em;margin-bottom:0.6rem}
+.how-step-desc{font-size:0.82rem;color:var(--muted2);line-height:1.65}
+
+/* ── LEVELS ── */
+#levels{background:var(--bg2)}
+.levels-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;max-width:1080px;margin:4rem auto 0}
+.lcard{background:rgba(7,8,16,0.98);border:0.5px solid var(--border);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;position:relative;transition:all .4s cubic-bezier(.4,0,.2,1)}
+.lcard:hover{transform:translateY(-8px);border-color:rgba(0,229,255,0.3);box-shadow:0 24px 64px rgba(0,0,0,0.5),0 0 40px rgba(0,229,255,0.07)}
+.lcard.feat{border-color:rgba(0,229,255,0.2)}
+.lcard-img{height:200px;position:relative;overflow:hidden}
+.lcard-img-bg{position:absolute;inset:0;background-size:cover;background-position:center;transition:transform .6s cubic-bezier(.4,0,.2,1)}
+.lcard:hover .lcard-img-bg{transform:scale(1.07)}
+.lcard-img-dim{position:absolute;inset:0;background:rgba(4,5,13,0.45)}
+.lcard-img-overlay{position:absolute;inset:0;background:linear-gradient(0deg,rgba(7,8,16,1) 0%,rgba(7,8,16,0.2) 50%,transparent 80%)}
+.lcard-img-glow1{position:absolute;inset:0;background:radial-gradient(ellipse 60% 70% at 50% 60%,rgba(139,92,246,0.25),transparent 65%)}
+.lcard-img-glow2{position:absolute;inset:0;background:radial-gradient(ellipse 60% 70% at 50% 50%,rgba(0,229,255,0.22),transparent 65%)}
+.lcard-img-glow3{position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(120,60,255,0.25),transparent 65%)}
+.lcard-num{position:absolute;top:1rem;left:1.2rem;font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:0.18em;color:rgba(255,255,255,0.5);z-index:2}
+.lcard-rec{position:absolute;top:0.8rem;right:0.8rem;font-family:'Space Mono',monospace;font-size:0.56rem;letter-spacing:0.14em;text-transform:uppercase;background:rgba(0,229,255,0.1);border:0.5px solid rgba(0,229,255,0.3);color:var(--cyan);padding:0.25rem 0.6rem;border-radius:4px;z-index:2}
+.lcard-body{padding:1.8rem 1.8rem 2rem;display:flex;flex-direction:column;flex:1}
+.lcard-tier{font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:0.18em;color:var(--muted);text-transform:uppercase;margin-bottom:0.4rem}
+.lcard-name{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:0.04em;line-height:1;margin-bottom:0.5rem}
+.lcard-sub{font-size:0.8rem;color:var(--cyan);font-weight:500;letter-spacing:0.04em;margin-bottom:1rem}
+.lcard-desc{font-size:0.85rem;color:var(--muted2);line-height:1.65;margin-bottom:1.5rem;flex:1}
+.lcard-feats{border-top:0.5px solid var(--border);padding-top:1.3rem;display:flex;flex-direction:column;gap:0.6rem}
+.lf{display:flex;align-items:center;gap:0.6rem;font-size:0.82rem;color:var(--off)}
+.lf-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+
+/* ── APP ── */
+#app{background:var(--bg)}
+#app::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,0.06),transparent 65%);pointer-events:none}
+.app-grid{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center}
+.af-list{display:flex;flex-direction:column;gap:0.85rem;margin-top:2rem}
+.af{display:flex;align-items:flex-start;gap:1rem;background:rgba(255,255,255,0.02);border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.2rem;transition:all .25s}
+.af:hover{border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.04)}
+.af-icon{width:36px;height:36px;border-radius:9px;background:rgba(139,92,246,0.1);border:0.5px solid rgba(139,92,246,0.22);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.af-name{font-size:0.87rem;font-weight:600;margin-bottom:0.15rem}.af-desc{font-size:0.77rem;color:var(--muted2);line-height:1.5}
+.phones-wrap{display:flex;gap:1.2rem;justify-content:center;align-items:flex-end}
+.phone{width:155px;background:rgba(7,8,16,0.98);border:0.5px solid var(--border2);border-radius:28px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.phone.main{width:180px;margin-bottom:1.5rem;border-color:rgba(139,92,246,0.3);box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 40px rgba(139,92,246,0.12)}
+.p-notch{width:55px;height:5px;background:rgba(255,255,255,0.07);border-radius:0 0 5px 5px;margin:0 auto}
+.p-screen{padding:0.6rem 0.6rem 1rem}
+.p-header{background:linear-gradient(135deg,var(--violet2),#1D0059);border-radius:9px;padding:0.9rem;text-align:center;margin-bottom:0.5rem}
+.p-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:0.06em;color:var(--white);margin-bottom:0.1rem}
+.p-date{font-size:0.55rem;color:rgba(255,255,255,0.4);letter-spacing:0.1em}
+.p-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.4rem}
+.p-btn{background:rgba(255,255,255,0.04);border-radius:7px;padding:0.55rem 0.4rem;text-align:center;border:0.5px solid var(--border)}
+.p-btn-ico{font-size:13px;margin-bottom:0.15rem}.p-btn-lbl{font-size:0.5rem;color:var(--muted2);letter-spacing:0.05em;text-transform:uppercase;font-family:'Space Mono',monospace}
+.p-row{display:flex;align-items:center;gap:0.4rem;background:rgba(255,255,255,0.025);border-radius:7px;padding:0.5rem 0.65rem;margin-top:0.4rem;border:0.5px solid var(--border)}
+.p-ico{width:20px;height:20px;border-radius:5px;background:rgba(0,229,255,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.p-t strong{display:block;font-weight:600;color:var(--white);font-size:0.6rem}.p-t span{color:var(--muted2);font-size:0.55rem}
+
+/* ── WORKFLOW ── */
+#workflow{background:var(--bg2);overflow:hidden}
+#workflow::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,229,255,0.3),rgba(139,92,246,0.3),transparent)}
+.wf-steps{display:grid;grid-template-columns:1fr 50px 1fr 50px 1fr;gap:0;max-width:1080px;margin:4rem auto 0;align-items:center}
+.wf-card{background:rgba(7,8,16,0.9);border:0.5px solid var(--border);border-radius:20px;padding:2rem 1.8rem;position:relative;overflow:hidden;transition:all .35s}
+.wf-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:0;transition:opacity .35s}
+.wf-card:hover{border-color:rgba(0,229,255,0.25);transform:translateY(-4px)}.wf-card:hover::before{opacity:1}
+.wf-n{font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:0.18em;color:var(--muted);margin-bottom:1rem}
+.wf-ico{width:48px;height:48px;border-radius:13px;display:flex;align-items:center;justify-content:center;margin-bottom:1.2rem}
+.wf-ico.a{background:rgba(0,229,255,0.07);border:0.5px solid rgba(0,229,255,0.18)}
+.wf-ico.b{background:linear-gradient(135deg,rgba(0,229,255,0.07),rgba(139,92,246,0.07));border:0.5px solid rgba(255,255,255,0.08)}
+.wf-ico.c{background:rgba(139,92,246,0.07);border:0.5px solid rgba(139,92,246,0.18)}
+.wf-name{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:0.05em;margin-bottom:0.25rem}
+.wf-sub{font-size:0.68rem;color:var(--cyan);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:1rem;font-family:'Space Mono',monospace}
+.wf-items{display:flex;flex-direction:column;gap:0.5rem}
+.wi{display:flex;align-items:flex-start;gap:0.55rem;font-size:0.82rem;color:var(--muted2);line-height:1.5}
+.wd{width:4px;height:4px;border-radius:50%;background:var(--cyan);flex-shrink:0;margin-top:8px}.wd.v{background:var(--violet)}
+.wf-arrow{display:flex;align-items:center;justify-content:center}
+.wf-arrow svg{width:26px;height:26px;opacity:0.22}
+.central-tagline{max-width:1080px;margin:4rem auto 0;text-align:center;padding:3rem;border:0.5px solid var(--border);border-radius:20px;background:rgba(255,255,255,0.01);position:relative;overflow:hidden}
+.central-tagline::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(0,229,255,0.04),transparent 70%)}
+.ct-text{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.8rem,4vw,3rem);letter-spacing:0.06em;position:relative;z-index:1}
+
+/* ── SOCIAL PROOF ── */
+#social{background:var(--bg)}
+.social-inner{max-width:1080px;margin:0 auto}
+.spots-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin:4rem 0 0}
+.spot-card{border-radius:18px;border:0.5px solid var(--border);aspect-ratio:3/4;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;transition:all .35s}
+.spot-card:hover{border-color:rgba(0,229,255,0.25);transform:translateY(-6px);box-shadow:0 24px 60px rgba(0,0,0,0.6)}
+.spot-card:nth-child(2){margin-top:2.5rem}.spot-card:nth-child(3){margin-top:-2rem}
+.spot-img{position:absolute;inset:0;background-size:cover;background-position:center;transition:transform .6s cubic-bezier(.4,0,.2,1)}
+.spot-card:hover .spot-img{transform:scale(1.07)}
+.spot-dim{position:absolute;inset:0}
+.spot-grad{position:absolute;inset:0;background:linear-gradient(0deg,rgba(4,5,13,0.97) 0%,rgba(4,5,13,0.15) 50%,transparent 78%)}
+.spot-body{position:relative;z-index:1;padding:1.5rem}
+.spot-hashtag{font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:0.14em;color:var(--cyan);text-transform:uppercase;margin-bottom:0.3rem}
+.spot-name{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:0.03em}
+.spot-desc{font-size:0.75rem;color:var(--muted2);margin-top:0.2rem}
+.doc-block{margin-top:3rem;border:0.5px solid rgba(0,229,255,0.14);border-radius:22px;background:linear-gradient(145deg,rgba(0,229,255,0.03),rgba(139,92,246,0.03));padding:3.5rem;display:grid;grid-template-columns:1fr 1fr;gap:3.5rem;align-items:center}
+.doc-h{font-family:'Bebas Neue',sans-serif;font-size:2.1rem;letter-spacing:0.02em;line-height:1.08;margin-bottom:1rem}
+.doc-p{font-size:0.9rem;color:var(--muted2);line-height:1.75}
+.doc-video{aspect-ratio:16/9;border-radius:14px;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center}
+.doc-video-img{position:absolute;inset:0;background-size:cover;background-position:center;filter:brightness(0.4)}
+.doc-video::after{content:'';position:absolute;inset:0;background:linear-gradient(145deg,rgba(0,229,255,0.07),rgba(139,92,246,0.07))}
+.play-btn{width:64px;height:64px;border-radius:50%;background:rgba(0,229,255,0.12);border:0.5px solid rgba(0,229,255,0.35);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;z-index:1;transition:all .3s}
+.play-btn:hover{background:rgba(0,229,255,0.22);box-shadow:0 0 32px var(--glow-c);transform:scale(1.08)}
+.play-btn svg{width:26px;height:26px;fill:var(--cyan);margin-left:4px}
+
+/* ── TESTIMONIOS ── */
+#testimonios{background:var(--bg2)}
+.testi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;max-width:1080px;margin:4rem auto 0}
+.testi-card{
+  background:rgba(8,9,18,0.85);border:0.5px solid var(--border);border-radius:20px;
+  padding:2.2rem;position:relative;overflow:hidden;
+  transition:all .3s;
+}
+.testi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:0;transition:opacity .3s}
+.testi-card:hover{border-color:rgba(0,229,255,0.2);transform:translateY(-4px)}.testi-card:hover::before{opacity:1}
+.testi-quote{font-size:2.5rem;line-height:1;color:var(--cyan);opacity:0.3;margin-bottom:0.5rem;font-family:Georgia,serif}
+.testi-text{font-size:0.9rem;color:var(--off);line-height:1.72;margin-bottom:1.8rem;font-style:italic}
+.testi-author{display:flex;align-items:center;gap:0.9rem}
+.testi-avatar{
+  width:44px;height:44px;border-radius:50%;
+  background-size:cover;background-position:center;
+  border:1.5px solid rgba(0,229,255,0.25);flex-shrink:0;
+}
+.testi-name{font-size:0.88rem;font-weight:600;margin-bottom:0.1rem}
+.testi-role{font-size:0.72rem;color:var(--muted2);letter-spacing:0.04em}
+.testi-stars{color:var(--cyan);font-size:0.75rem;margin-bottom:0.8rem;letter-spacing:0.1em}
+
+/* ── FAQ ── */
+#faq{background:var(--bg)}
+.faq-inner{max-width:740px;margin:4rem auto 0}
+.faq-item{
+  border-bottom:0.5px solid var(--border);overflow:hidden;
+}
+.faq-item:first-child{border-top:0.5px solid var(--border)}
+.faq-q{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:1.4rem 0;cursor:pointer;
+  font-size:0.97rem;font-weight:500;
+  transition:color .2s;
+  user-select:none;
+}
+.faq-q:hover{color:var(--cyan)}
+.faq-icon{
+  width:28px;height:28px;border-radius:50%;
+  border:0.5px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-left:1rem;
+  transition:all .3s;
+}
+.faq-item.open .faq-icon{
+  background:rgba(0,229,255,0.08);
+  border-color:rgba(0,229,255,0.3);
+  transform:rotate(45deg);
+}
+.faq-icon svg{width:14px;height:14px;stroke:var(--muted2);transition:stroke .2s}
+.faq-item.open .faq-icon svg{stroke:var(--cyan)}
+.faq-a{
+  max-height:0;overflow:hidden;
+  transition:max-height .4s cubic-bezier(.4,0,.2,1),padding .4s;
+  font-size:0.88rem;color:var(--muted2);line-height:1.75;
+  padding:0;
+}
+.faq-item.open .faq-a{max-height:200px;padding-bottom:1.4rem}
+
+/* ── PILLARS ── */
+#pillars{position:relative;z-index:1;padding:4rem 5vw;background:var(--bg2);border-top:0.5px solid var(--border);border-bottom:0.5px solid var(--border)}
+.pillars-inner{max-width:1080px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
+.pillar{display:flex;flex-direction:column;align-items:center;gap:0.6rem;text-align:center;padding:1.2rem 1.8rem;border:0.5px solid var(--border);border-radius:14px;flex:1;min-width:140px;transition:all .25s;background:rgba(255,255,255,0.01)}
+.pillar:hover{border-color:rgba(0,229,255,0.2);background:rgba(0,229,255,0.03)}
+.pillar svg{width:24px;height:24px;opacity:0.55}
+.pillar span{font-size:0.68rem;color:var(--muted2);letter-spacing:0.1em;text-transform:uppercase;font-family:'Space Mono',monospace}
+
+/* ── CONTACT ── */
+#contact{background:var(--bg);overflow:hidden}
+#contact::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,0.07),transparent 65%);pointer-events:none}
+.contact-inner{max-width:560px;margin:0 auto;position:relative;z-index:1}
+.form-card{background:rgba(6,7,14,0.92);border:0.5px solid var(--border2);border-radius:24px;padding:3rem;backdrop-filter:blur(20px);margin-top:3.5rem}
+.fl{margin-bottom:1.5rem}
+.fl label{display:block;font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:0.18em;color:var(--muted);text-transform:uppercase;margin-bottom:0.55rem}
+.fi{width:100%;background:rgba(255,255,255,0.025);border:0.5px solid var(--border);border-radius:10px;padding:0.82rem 1.1rem;color:var(--white);font-family:'Outfit',sans-serif;font-size:0.9rem;outline:none;transition:all .25s;-webkit-appearance:none;appearance:none}
+.fi::placeholder{color:rgba(80,87,106,0.7)}
+.fi:focus{border-color:rgba(0,229,255,0.35);background:rgba(0,229,255,0.02);box-shadow:0 0 0 3px rgba(0,229,255,0.06)}
+select.fi{cursor:pointer}select.fi option{background:#0a0c18;color:var(--white)}
+.submit{width:100%;padding:1rem;margin-top:0.5rem;background:linear-gradient(130deg,var(--cyan),var(--cyan2));color:#040610;font-family:'Outfit',sans-serif;font-weight:700;font-size:0.9rem;letter-spacing:0.08em;border:none;border-radius:10px;cursor:pointer;box-shadow:0 0 28px var(--glow-c);transition:all .3s}
+.submit:hover{transform:translateY(-2px);box-shadow:0 0 50px var(--glow-c)}
+.form-note{font-size:0.72rem;color:var(--muted);text-align:center;margin-top:0.9rem}
+
+footer{position:relative;z-index:1;border-top:0.5px solid var(--border);padding:2.5rem 5vw;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;background:var(--bg2)}
+.f-logo{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.1em;background:linear-gradient(90deg,var(--white),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.f-tagline{font-size:0.78rem;color:var(--muted);font-style:italic}
+.f-links{display:flex;gap:1.5rem}
+.f-links a{font-size:0.78rem;color:var(--muted);text-decoration:none;transition:color .2s}
+.f-links a:hover{color:var(--white)}
+
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:translateY(0)}
+.d1{transition-delay:.1s}.d2{transition-delay:.22s}.d3{transition-delay:.34s}.d4{transition-delay:.44s}
+
+@media(max-width:900px){
+  nav{padding:0.9rem 4vw}.nav-links li:not(:last-child){display:none}
+  .metrics-row{flex-wrap:wrap}.metric{padding:1.2rem 1.8rem;flex:1;min-width:130px}
+  .dlt-wrap{grid-template-columns:1fr;gap:1rem}.vs-mid{display:none}
+  .tipos-grid,.levels-grid,.testi-grid{grid-template-columns:1fr}
+  .app-grid{grid-template-columns:1fr;gap:3rem}
+  .wf-steps{grid-template-columns:1fr;gap:1rem}.wf-arrow{transform:rotate(90deg)}
+  .how-steps{grid-template-columns:1fr 1fr;gap:3rem}.how-steps::before{display:none}
+  .spots-grid{grid-template-columns:1fr 1fr}
+  .spot-card:nth-child(2){margin-top:0}.spot-card:nth-child(3){margin-top:0;display:none}
+  .doc-block{grid-template-columns:1fr;gap:2rem}
+  footer{flex-direction:column;text-align:center}
+}
+@media(max-width:600px){
+  section,#hero{padding:6rem 5vw}.form-card{padding:2rem 1.5rem}.doc-block{padding:2rem}
+  .how-steps{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div id="cg"></div>
+<canvas id="pc"></canvas>
+<a href="#contact" id="fcta">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+  Agendar llamada
+</a>
+
+<nav>
+  <div class="logo">Inmersive.co</div>
+  <ul class="nav-links">
+    <li><a href="#dlt">Estrategia</a></li>
+    <li><a href="#tipos">Eventos</a></li>
+    <li><a href="#levels">Niveles</a></li>
+    <li><a href="#app">App</a></li>
+    <li><a href="#testimonios">Casos</a></li>
+    <li><a href="#faq">FAQ</a></li>
+    <li><a href="#contact" class="nav-pill">Agendar llamada →</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-mesh"></div>
+  <div class="scan-line"></div>
+  <div class="badge"><div class="badge-dot"></div>Doble Línea de Tiempo</div>
+  <h1 class="display">TU EVENTO<br><span class="grad-text">YA PASÓ.</span></h1>
+  <div class="hero-sub2">LA EXPERIENCIA<br>APENAS COMIENZA.</div>
+  <p class="hero-sub">Diseñamos eventos que viven <span id="tw"></span><br>Logística impecable + narrativa digital que escala sola.</p>
+  <div class="cta-row">
+    <a href="#contact" class="btn-primary">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      Quiero un evento inmersivo
+    </a>
+    <a href="#tipos" class="btn-ghost">Ver tipos de eventos</a>
+  </div>
+  <div class="metrics-row">
+    <div class="metric"><span class="m-n counter" data-target="10" data-suffix="×">0×</span><span class="m-l">Alcance orgánico</span></div>
+    <div class="metric"><span class="m-n counter" data-prefix="+" data-target="80" data-suffix="%">+0%</span><span class="m-l">Contenido generado</span></div>
+    <div class="metric"><span class="m-n">48h</span><span class="m-l">De vida online</span></div>
+    <div class="metric"><span class="m-n counter" data-target="100" data-suffix="%">0%</span><span class="m-l">Estrategia social</span></div>
+  </div>
+</section>
+
+<!-- DLT -->
+<section id="dlt">
+  <div style="max-width:1000px;margin:0 auto">
+    <div class="center reveal">
+      <span class="sec-tag" style="color:var(--violet)">La estrategia</span>
+      <h2 class="sec-h">DOBLE LÍNEA DE <span>TIEMPO</span></h2>
+      <p class="sec-sub">Dos tracks paralelos que se construyen juntos desde el día uno. No es un add-on. Es la estructura.</p>
+    </div>
+    <div class="dlt-wrap">
+      <div class="dlt-card reveal d1">
+        <div class="dlt-head"><div class="track-dot t"></div><div><h3 style="color:var(--off)">Línea Tradicional</h3><p>Logística impecable</p></div></div>
+        <div class="dlt-body">
+          <div class="dlt-row"><div class="di x"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><span style="color:var(--muted2)">Evento vive solo durante el horario contratado</span></div>
+          <div class="dlt-row"><div class="di x"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><span style="color:var(--muted2)">Contenido fragmentado en teléfonos ajenos</span></div>
+          <div class="dlt-row"><div class="di x"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><span style="color:var(--muted2)">Sin métricas de impacto real post-evento</span></div>
+          <div class="dlt-row"><div class="di x"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><span style="color:var(--muted2)">La marca está presente. No protagoniza.</span></div>
+        </div>
+      </div>
+      <div class="vs-mid"><div class="vs-ring">VS</div></div>
+      <div class="dlt-card right reveal d2">
+        <div class="dlt-head"><div class="track-dot r"></div><div><h3 style="background:linear-gradient(100deg,var(--cyan),#A78BFA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Línea de Contenido</h3><p>Social First — RRSS</p></div></div>
+        <div class="dlt-body">
+          <div class="dlt-row"><div class="di ok"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6l3.5 3.5L10 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Diseñado para vivir en reel, story y documental</span></div>
+          <div class="dlt-row"><div class="di ok"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6l3.5 3.5L10 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Spots instagrameables que se convierten en producción</span></div>
+          <div class="dlt-row"><div class="di ok"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6l3.5 3.5L10 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Dashboard de impacto: alcance, UGC y conversiones</span></div>
+          <div class="dlt-row"><div class="di ok"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6l3.5 3.5L10 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>La marca no organiza el evento. <em>Es</em> el evento.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BRAND STRIP -->
+<div id="brands">
+  <div class="brands-fade-l"></div>
+  <div class="brands-fade-r"></div>
+  <div class="brands-label">Trabajamos con marcas que entienden que los eventos son contenido</div>
+  <div style="overflow:hidden">
+    <div class="brands-track">
+      <span class="brand-item">MARRIOTT</span>
+      <span class="brand-item">BANCO GALICIA</span>
+      <span class="brand-item">MERCADO LIBRE</span>
+      <span class="brand-item">SWAROVSKI</span>
+      <span class="brand-item">SANTANDER</span>
+      <span class="brand-item">ADIDAS</span>
+      <span class="brand-item">CLARO</span>
+      <span class="brand-item">MOVISTAR</span>
+      <span class="brand-item">MARRIOTT</span>
+      <span class="brand-item">BANCO GALICIA</span>
+      <span class="brand-item">MERCADO LIBRE</span>
+      <span class="brand-item">SWAROVSKI</span>
+      <span class="brand-item">SANTANDER</span>
+      <span class="brand-item">ADIDAS</span>
+      <span class="brand-item">CLARO</span>
+      <span class="brand-item">MOVISTAR</span>
+    </div>
+  </div>
+</div>
+
+<!-- TIPOS -->
+<section id="tipos">
+  <div class="center reveal">
+    <span class="sec-tag" style="color:var(--cyan)">Para cada momento</span>
+    <h2 class="sec-h">¿QUÉ <span>TIPO</span> DE EVENTO<br>ES EL TUYO?</h2>
+    <p class="sec-sub">La misma filosofía aplicada a cada contexto.</p>
+  </div>
+  <div class="tipos-grid">
+    <div class="tipo-card reveal d1">
+      <div class="tipo-visual">
+        <div class="tipo-img" style="background-image:url('https://images.unsplash.com/photo-1519741347686-c1e0aadf4611?auto=format&fit=crop&w=900&q=80')"></div>
+        <div class="tipo-dim"></div><div class="tipo-color-bodas"></div><div class="tipo-overlay"></div>
+        <div class="tipo-label-top">BODAS INMERSIVAS</div>
+      </div>
+      <div class="tipo-body">
+        <div class="tipo-name">BODAS <span style="color:var(--cyan)">INMERSIVAS</span></div>
+        <div class="tipo-desc">Su historia contada en pantallas, luces y momentos que los invitados viven desde adentro. Votos en vivo, narrativa personalizada y contenido que dura para siempre.</div>
+        <div class="tipo-tags"><span class="tag">App de la boda</span><span class="tag">Votos en vivo</span><span class="tag">Mapping 360°</span><span class="tag">Galería live</span><span class="tag">Documental</span></div>
+      </div>
+    </div>
+    <div class="tipo-card reveal d2">
+      <div class="tipo-visual">
+        <div class="tipo-img" style="background-image:url('https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=900&q=80')"></div>
+        <div class="tipo-dim"></div><div class="tipo-color-corp"></div><div class="tipo-overlay"></div>
+        <div class="tipo-label-top">CORPORATIVOS</div>
+      </div>
+      <div class="tipo-body">
+        <div class="tipo-name">EVENTOS <span style="color:var(--cyan)">CORP.</span></div>
+        <div class="tipo-desc">Lanzamientos, congresos y celebraciones que trascienden el salón. Tecnología, producción y estrategia de contenido integradas desde el diseño.</div>
+        <div class="tipo-tags"><span class="tag">App del evento</span><span class="tag">Hologramas</span><span class="tag">Producción vertical</span><span class="tag">Dashboard</span><span class="tag">Livestream</span></div>
+      </div>
+    </div>
+    <div class="tipo-card reveal d3">
+      <div class="tipo-visual">
+        <div class="tipo-img" style="background-image:url('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=900&q=80')"></div>
+        <div class="tipo-dim"></div><div class="tipo-color-launch"></div><div class="tipo-overlay"></div>
+        <div class="tipo-label-top">LANZAMIENTOS</div>
+      </div>
+      <div class="tipo-body">
+        <div class="tipo-name">LANZAMIENTO <span style="color:var(--violet)">DE MARCA</span></div>
+        <div class="tipo-desc">El momento en que el mundo conoce tu producto merece ser épico. Puesta en escena, contenido y estrategia de impacto para que viva semanas.</div>
+        <div class="tipo-tags"><span class="tag">Puesta escénica</span><span class="tag">Reels en vivo</span><span class="tag">Narrative POV</span><span class="tag">UGC strategy</span><span class="tag">Transmedia</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="how-inner">
+    <div class="center reveal">
+      <span class="sec-tag" style="color:var(--cyan)">El proceso</span>
+      <h2 class="sec-h">¿CÓMO <span>FUNCIONA</span>?</h2>
+      <p class="sec-sub">Cuatro pasos desde la idea hasta que el contenido vive solo en internet.</p>
+    </div>
+    <div class="how-steps">
+      <div class="how-step reveal d1">
+        <div class="how-num-wrap"><span class="how-num">01</span></div>
+        <div class="how-step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        </div>
+        <div class="how-step-title">PRIMERA LLAMADA</div>
+        <div class="how-step-desc">Entendemos tu evento, tu marca y qué historia querés contar. En 30 min ya sabemos si hay fit.</div>
+      </div>
+      <div class="how-step reveal d2">
+        <div class="how-num-wrap"><span class="how-num">02</span></div>
+        <div class="how-step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="1.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </div>
+        <div class="how-step-title">PROPUESTA CREATIVA</div>
+        <div class="how-step-desc">Diseñamos el concepto visual, los spots del espacio y la estrategia de contenido antes de tocar una sola silla.</div>
+      </div>
+      <div class="how-step reveal d3">
+        <div class="how-num-wrap"><span class="how-num">03</span></div>
+        <div class="how-step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        </div>
+        <div class="how-step-title">EJECUCIÓN EN VIVO</div>
+        <div class="how-step-desc">El día del evento dos equipos trabajan en paralelo: logística y contenido. Sin improvisar. Sin perder un momento.</div>
+      </div>
+      <div class="how-step reveal d4">
+        <div class="how-num-wrap"><span class="how-num">04</span></div>
+        <div class="how-step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="how-step-title">EL LEGADO</div>
+        <div class="how-step-desc">Métricas, documental, clips y estrategia post-evento. Tu inversión sigue generando valor semanas después.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LEVELS -->
+<section id="levels">
+  <div class="center reveal">
+    <span class="sec-tag" style="color:var(--cyan)">Niveles de experiencia</span>
+    <h2 class="sec-h">ELEGÍ TU <span>NIVEL</span></h2>
+    <p class="sec-sub">Tres formatos con la misma filosofía: logística que funciona, narrativa que escala.</p>
+  </div>
+  <div class="levels-grid">
+    <div class="lcard reveal d1">
+      <div class="lcard-img">
+        <div class="lcard-img-bg" style="background-image:url('https://images.unsplash.com/photo-1478737270239-2f02b77fc618?auto=format&fit=crop&w=800&q=80')"></div>
+        <div class="lcard-img-dim"></div><div class="lcard-img-glow1"></div><div class="lcard-img-overlay"></div>
+        <div class="lcard-num">NIVEL 01</div>
+      </div>
+      <div class="lcard-body">
+        <div class="lcard-tier">Full Tech</div>
+        <div class="lcard-name" style="color:#A78BFA">FULL TECH</div>
+        <div class="lcard-sub">Disrupción e Interacción</div>
+        <div class="lcard-desc">Realidad aumentada, hologramas, pisos LED touch e instalaciones interactivas que generan contenido solo con estar presentes.</div>
+        <div class="lcard-feats">
+          <div class="lf"><div class="lf-dot" style="background:var(--violet)"></div>App del evento personalizada</div>
+          <div class="lf"><div class="lf-dot" style="background:var(--violet)"></div>Escenografía interactiva + AR</div>
+          <div class="lf"><div class="lf-dot" style="background:var(--violet)"></div>Mapping 3D en tiempo real</div>
+          <div class="lf"><div class="lf-dot" style="background:var(--violet)"></div>Documental de producción</div>
+        </div>
+      </div>
+    </div>
+    <div class="lcard feat reveal d2">
+      <div class="lcard-img">
+        <div class="lcard-img-bg" style="background-image:url('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&q=80')"></div>
+        <div class="lcard-img-dim"></div><div class="lcard-img-glow2"></div><div class="lcard-img-overlay"></div>
+        <div class="lcard-num">NIVEL 02</div><div class="lcard-rec">Recomendado</div>
+      </div>
+      <div class="lcard-body">
+        <div class="lcard-tier">Full RRSS</div>
+        <div class="lcard-name"><span class="grad-text">FULL RRSS</span></div>
+        <div class="lcard-sub">Social First</div>
+        <div class="lcard-desc">Producción vertical, spots instagrameables y edición en tiempo real. El contenido empieza a vivir antes de que termine el evento.</div>
+        <div class="lcard-feats">
+          <div class="lf"><div class="lf-dot" style="background:var(--cyan)"></div>Producción vertical (Reel/TikTok)</div>
+          <div class="lf"><div class="lf-dot" style="background:var(--cyan)"></div>Espacios instagrameables diseñados</div>
+          <div class="lf"><div class="lf-dot" style="background:var(--cyan)"></div>Clips y edición en tiempo real</div>
+          <div class="lf"><div class="lf-dot" style="background:var(--cyan)"></div>Estrategia de UGC incluida</div>
+        </div>
+      </div>
+    </div>
+    <div class="lcard reveal d3">
+      <div class="lcard-img">
+        <div class="lcard-img-bg" style="background-image:url('https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=800&q=80')"></div>
+        <div class="lcard-img-dim"></div><div class="lcard-img-glow3"></div><div class="lcard-img-overlay"></div>
+        <div class="lcard-num">NIVEL 03</div>
+      </div>
+      <div class="lcard-body">
+        <div class="lcard-tier">Experiencia</div>
+        <div class="lcard-name">EXPERIENCIA</div>
+        <div class="lcard-sub">Fusión Transmedia</div>
+        <div class="lcard-desc">Narrativa POV, puesta escénica coreografiada y fusión presencial-digital. Empieza antes, explota durante y genera contenido por semanas.</div>
+        <div class="lcard-feats">
+          <div class="lf"><div class="lf-dot" style="background:rgba(255,255,255,0.4)"></div>Puesta escénica coreografiada</div>
+          <div class="lf"><div class="lf-dot" style="background:rgba(255,255,255,0.4)"></div>Narrativa POV (cámaras subjetivas)</div>
+          <div class="lf"><div class="lf-dot" style="background:rgba(255,255,255,0.4)"></div>Fusión presencial-digital en vivo</div>
+          <div class="lf"><div class="lf-dot" style="background:rgba(255,255,255,0.4)"></div>Estrategia editorial completa</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- APP -->
+<section id="app">
+  <div class="app-grid">
+    <div class="reveal">
+      <span class="sec-tag" style="color:var(--violet)">Tecnología integrada</span>
+      <h2 class="sec-h">LA <span>APP</span><br>DEL EVENTO</h2>
+      <p style="font-size:0.92rem;color:var(--muted2);line-height:1.78;margin-bottom:2rem">Todo en un solo lugar. Cronograma, mapa, galería en vivo, mensajes y contenido exclusivo desde su teléfono.</p>
+      <div class="af-list">
+        <div class="af"><div class="af-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div><div><div class="af-name">Cronograma interactivo</div><div class="af-desc">Agenda en tiempo real con notificaciones push para cada momento clave</div></div></div>
+        <div class="af"><div class="af-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><div><div class="af-name">Mapa del espacio</div><div class="af-desc">Navegación interior con puntos de interés y spots marcados</div></div></div>
+        <div class="af"><div class="af-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div><div><div class="af-name">Galería en vivo</div><div class="af-desc">Fotos y reels publicados al instante desde el backstage</div></div></div>
+        <div class="af"><div class="af-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div><div><div class="af-name">Mensajes proyectados en vivo</div><div class="af-desc">Los mensajes de los invitados aparecen en las pantallas del evento</div></div></div>
+      </div>
+    </div>
+    <div class="phones-wrap reveal d2">
+      <div class="phone">
+        <div class="p-notch"></div>
+        <div class="p-screen">
+          <div style="text-align:center;padding:0.6rem 0;border-bottom:0.5px solid var(--border);margin-bottom:0.5rem"><div style="font-family:'Space Mono',monospace;font-size:0.52rem;letter-spacing:0.1em;color:var(--muted2)">AGENDA</div></div>
+          <div class="p-row"><div class="p-ico"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="p-t"><strong>20:00hs</strong><span>Apertura del salón</span></div></div>
+          <div class="p-row"><div class="p-ico"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div><div class="p-t"><strong>21:30hs</strong><span>Show inmersivo</span></div></div>
+          <div class="p-row"><div class="p-ico"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div><div class="p-t"><strong>22:00hs</strong><span>Votos en vivo</span></div></div>
+          <div class="p-row"><div class="p-ico"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="p-t"><strong>Live</strong><span>Galería en vivo</span></div></div>
+        </div>
+      </div>
+      <div class="phone main">
+        <div class="p-notch"></div>
+        <div class="p-screen">
+          <div class="p-header"><div class="p-title">BIENVENIDOS</div><div class="p-date" style="margin-bottom:0.4rem">AL EVENTO · 20.09.24</div><div style="font-size:0.55rem;color:rgba(255,255,255,0.35)">UNA EXPERIENCIA SIN LÍMITES</div></div>
+          <div class="p-grid">
+            <div class="p-btn"><div class="p-btn-ico">📅</div><div class="p-btn-lbl">Cronograma</div></div>
+            <div class="p-btn"><div class="p-btn-ico">🗺️</div><div class="p-btn-lbl">Mapa</div></div>
+            <div class="p-btn"><div class="p-btn-ico">👥</div><div class="p-btn-lbl">Invitados</div></div>
+            <div class="p-btn"><div class="p-btn-ico">⚡</div><div class="p-btn-lbl">Interacción</div></div>
+            <div class="p-btn"><div class="p-btn-ico">🖼️</div><div class="p-btn-lbl">Galería</div></div>
+            <div class="p-btn" style="background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.25)"><div class="p-btn-ico">⭐</div><div class="p-btn-lbl" style="color:var(--violet)">Exclusivo</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="p-notch"></div>
+        <div class="p-screen">
+          <div style="text-align:center;padding:0.6rem 0;border-bottom:0.5px solid var(--border);margin-bottom:0.5rem"><div style="font-family:'Space Mono',monospace;font-size:0.52rem;letter-spacing:0.1em;color:var(--muted2)">@INMERSIVOS</div></div>
+          <div style="aspect-ratio:9/16;max-height:150px;border-radius:7px;overflow:hidden;position:relative;margin-bottom:0.4rem;border:0.5px solid var(--border)">
+            <img src="https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?auto=format&fit=crop&w=300&q=70" style="width:100%;height:100%;object-fit:cover;opacity:0.55" alt="">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" style="opacity:0.9"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          </div>
+          <div style="display:flex;gap:0.4rem">
+            <div style="flex:1;aspect-ratio:1;border-radius:5px;overflow:hidden;border:0.5px solid var(--border)"><img src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=100&q=60" style="width:100%;height:100%;object-fit:cover;opacity:0.5" alt=""></div>
+            <div style="flex:1;aspect-ratio:1;border-radius:5px;overflow:hidden;border:0.5px solid var(--border)"><img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=100&q=60" style="width:100%;height:100%;object-fit:cover;opacity:0.5" alt=""></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WORKFLOW -->
+<section id="workflow">
+  <div style="max-width:1080px;margin:0 auto">
+    <div class="center reveal">
+      <span class="sec-tag" style="color:var(--cyan)">Modelo Operativo</span>
+      <h2 class="sec-h">EL WORKFLOW <span>CONJUNTO</span></h2>
+      <p class="sec-sub">Un proceso integrado donde logística y contenido corren en paralelo desde el día cero.</p>
+    </div>
+    <div class="wf-steps">
+      <div class="wf-card reveal d1">
+        <div class="wf-n">01</div>
+        <div class="wf-ico a"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+        <div class="wf-name">PRE-EVENTO</div><div class="wf-sub">Estratégico</div>
+        <div class="wf-items">
+          <div class="wi"><div class="wd"></div>Guión creativo y narrativo</div>
+          <div class="wi"><div class="wd"></div>Logística y planificación técnica</div>
+          <div class="wi"><div class="wd"></div>Gestión de la App del evento</div>
+          <div class="wi"><div class="wd"></div>Piezas teaser para RRSS</div>
+        </div>
+      </div>
+      <div class="wf-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+      <div class="wf-card reveal d2">
+        <div class="wf-n">02</div>
+        <div class="wf-ico b"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5"><defs><linearGradient id="wg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#00E5FF"/><stop offset="100%" stop-color="#8B5CF6"/></linearGradient></defs><polygon points="23 7 16 12 23 17 23 7" stroke="url(#wg)"/><rect x="1" y="5" width="15" height="14" rx="2" stroke="url(#wg)"/></svg></div>
+        <div class="wf-name">DURANTE</div><div class="wf-sub">Ejecución</div>
+        <div class="wf-items">
+          <div class="wi"><div class="wd v"></div>Dirección general del show</div>
+          <div class="wi"><div class="wd v"></div>Cobertura en vivo (multicámara)</div>
+          <div class="wi"><div class="wd v"></div>Edición de Reels al instante</div>
+          <div class="wi"><div class="wd v"></div>Flujo continuo del cronograma</div>
+        </div>
+      </div>
+      <div class="wf-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+      <div class="wf-card reveal d3">
+        <div class="wf-n">03</div>
+        <div class="wf-ico c"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+        <div class="wf-name">POST-EVENTO</div><div class="wf-sub">Legado</div>
+        <div class="wf-items">
+          <div class="wi"><div class="wd v"></div>Cierre de métricas y alcance</div>
+          <div class="wi"><div class="wd v"></div>Post-venta y seguimiento</div>
+          <div class="wi"><div class="wd v"></div>Documental final de producción</div>
+          <div class="wi"><div class="wd v"></div>Piezas de legado para la marca</div>
+        </div>
+      </div>
+    </div>
+    <div class="central-tagline reveal">
+      <div class="ct-text">UN EVENTO. &nbsp;<span style="color:var(--cyan)">DOS DIMENSIONES.</span>&nbsp; IMPACTO INFINITO.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SPOTS -->
+<section id="social">
+  <div class="social-inner">
+    <div class="center reveal">
+      <span class="sec-tag" style="color:var(--cyan)">El producto visual</span>
+      <h2 class="sec-h">LOS SPOTS QUE<br>GENERAN TU <span>CAMPAÑA</span></h2>
+      <p class="sec-sub">Diseñamos los espacios primero como contenido. El contenido escala solo.</p>
+    </div>
+    <div class="spots-grid">
+      <div class="spot-card reveal d1">
+        <div class="spot-img" style="background-image:url('https://images.unsplash.com/photo-1547826039-bdbebdcc10c6?auto=format&fit=crop&w=700&q=80')"></div>
+        <div class="spot-dim" style="background:rgba(4,5,13,0.35)"></div><div class="spot-grad"></div>
+        <div class="spot-body"><div class="spot-hashtag">#NeonTunnel</div><div class="spot-name">El túnel de luces</div><div class="spot-desc">Instalación LED inmersiva 360°</div></div>
+      </div>
+      <div class="spot-card reveal d2">
+        <div class="spot-img" style="background-image:url('https://images.unsplash.com/photo-1578301978018-3005759f48f7?auto=format&fit=crop&w=700&q=80')"></div>
+        <div class="spot-dim" style="background:rgba(4,5,13,0.3)"></div><div class="spot-grad"></div>
+        <div class="spot-body"><div class="spot-hashtag">#MirrorZone</div><div class="spot-name">Sala de espejos infinitos</div><div class="spot-desc">El spot más compartido de la edición</div></div>
+      </div>
+      <div class="spot-card reveal d3">
+        <div class="spot-img" style="background-image:url('https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=700&q=80')"></div>
+        <div class="spot-dim" style="background:rgba(4,5,13,0.45)"></div><div class="spot-grad"></div>
+        <div class="spot-body"><div class="spot-hashtag">#LiveStage</div><div class="spot-name">El escenario en vivo</div><div class="spot-desc">Producción cinematográfica en tiempo real</div></div>
+      </div>
+    </div>
+    <div class="doc-block reveal">
+      <div>
+        <span class="sec-tag" style="color:var(--cyan)">Capa narrativa</span>
+        <h3 class="doc-h">EL DOCUMENTAL QUE NADIE PIDE PERO TODOS VEN.</h3>
+        <p class="doc-p">Cada evento incluye una pieza documental de 3–5 min que captura el detrás de escena, la energía del espacio y la experiencia de los asistentes. Contenido que vive por semanas.</p>
+      </div>
+      <div class="doc-video">
+        <div class="doc-video-img" style="background-image:url('https://images.unsplash.com/photo-1478737270239-2f02b77fc618?auto=format&fit=crop&w=800&q=80')"></div>
+        <div class="play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIOS -->
+<section id="testimonios">
+  <div class="center reveal">
+    <span class="sec-tag" style="color:var(--violet)">Casos reales</span>
+    <h2 class="sec-h">LO QUE DICEN<br>QUIENES <span>YA LO VIVIERON</span></h2>
+    <p class="sec-sub">No opinamos sobre nuestro trabajo. Lo hacen ellos.</p>
+  </div>
+  <div class="testi-grid">
+    <div class="testi-card reveal d1">
+      <div class="testi-stars">★★★★★</div>
+      <div class="testi-quote">"</div>
+      <div class="testi-text">El evento duró 5 horas. El contenido sigue llegando a nuevas personas dos semanas después. Nunca imaginé que un evento corporativo pudiera generar tanto engagement orgánico.</div>
+      <div class="testi-author">
+        <div class="testi-avatar" style="background-image:url('https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=100&q=80')"></div>
+        <div><div class="testi-name">Valentina M.</div><div class="testi-role">Marketing Director — Banco Galicia</div></div>
+      </div>
+    </div>
+    <div class="testi-card reveal d2">
+      <div class="testi-stars">★★★★★</div>
+      <div class="testi-quote">"</div>
+      <div class="testi-text">Teníamos miedo de que "la parte del contenido" distrajera del evento. Fue todo lo contrario. Los invitados se convirtieron en creadores de contenido sin que nadie les pidiera nada.</div>
+      <div class="testi-author">
+        <div class="testi-avatar" style="background-image:url('https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=100&q=80')"></div>
+        <div><div class="testi-name">Rodrigo P.</div><div class="testi-role">CEO — Estudio de Arquitectura</div></div>
+      </div>
+    </div>
+    <div class="testi-card reveal d3">
+      <div class="testi-stars">★★★★★</div>
+      <div class="testi-quote">"</div>
+      <div class="testi-text">Nuestra boda fue trending en Buenos Aires por 3 días. Todavía hay personas que nos escriben diciendo que hubieran querido estar. Eso no tiene precio.</div>
+      <div class="testi-author">
+        <div class="testi-avatar" style="background-image:url('https://images.unsplash.com/photo-1494790108755-2616b612b5e5?auto=format&fit=crop&w=100&q=80')"></div>
+        <div><div class="testi-name">Cami & Fran</div><div class="testi-role">Boda Inmersiva — Sept. 2024</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="center reveal">
+    <span class="sec-tag" style="color:var(--cyan)">Preguntas frecuentes</span>
+    <h2 class="sec-h">TODO LO QUE<br><span>QUERÉS SABER</span></h2>
+  </div>
+  <div class="faq-inner">
+    <div class="faq-item">
+      <div class="faq-q">¿Cuánto tiempo antes tengo que contactarlos para mi evento?<div class="faq-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>
+      <div class="faq-a">Lo ideal es contactarnos con al menos 6 semanas de anticipación para eventos corporativos y 3 meses para bodas. Dicho eso, podemos trabajar en tiempos ajustados dependiendo del nivel elegido. Siempre vale la pena preguntar.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">¿La App del evento la usan los invitados o solo el equipo de producción?<div class="faq-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>
+      <div class="faq-a">Los invitados. Cada uno accede desde su teléfono con un link o QR. No requiere descarga. Tienen cronograma, mapa, galería en vivo, mensajes y contenido exclusivo. El equipo de producción tiene un panel adicional de control.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">¿Trabajan solo en Buenos Aires o también en el interior y el exterior?<div class="faq-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>
+      <div class="faq-a">Trabajamos en todo Argentina y tenemos capacidad para eventos internacionales. El equipo viaja. El costo de traslado y logística se incluye en la propuesta customizada.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">¿Puedo contratar solo la parte de contenido sin la logística del evento?<div class="faq-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>
+      <div class="faq-a">Sí, ofrecemos servicios de cobertura y producción de contenido para eventos ya organizados. Aunque nuestra propuesta de valor máxima es cuando diseñamos ambas líneas desde el inicio.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">¿Cuándo y cómo recibo el documental y los clips post-evento?<div class="faq-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>
+      <div class="faq-a">Los primeros clips los publicamos durante el evento mismo. El mini-documental y el material editado completo se entrega en los 5 días hábiles posteriores al evento, con revisión incluida.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">¿Cuál es la diferencia entre los tres niveles en términos de inversión?<div class="faq-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>
+      <div class="faq-a">Los precios dependen de la complejidad del evento, el número de invitados y los servicios específicos. Agendá una llamada y en 24hs te enviamos una propuesta detallada. No manejamos precios de lista porque cada evento es único.</div>
+    </div>
+  </div>
+</section>
+
+<!-- PILLARS -->
+<section id="pillars">
+  <div class="pillars-inner">
+    <div class="pillar"><svg viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/></svg><span>Tecnología</span></div>
+    <div class="pillar"><svg viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg><span>Contenido</span></div>
+    <div class="pillar"><svg viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><span>Experiencia</span></div>
+    <div class="pillar"><svg viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg><span>Conexión</span></div>
+    <div class="pillar"><svg viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Resultados</span></div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="center reveal">
+    <span class="sec-tag" style="color:var(--cyan)">Empezamos aquí</span>
+    <h2 class="sec-h">TU PRÓXIMO EVENTO<br>MERECE SER <span>RECORDADO</span></h2>
+    <p class="sec-sub">Contanos sobre tu proyecto. En 24h te respondemos con una propuesta preliminar.</p>
+  </div>
+  <div class="contact-inner">
+    <div class="form-card reveal">
+      <div class="fl"><label>Nombre / Empresa</label><input class="fi" type="text" placeholder="Acme Corp"></div>
+      <div class="fl"><label>Mail de contacto</label><input class="fi" type="email" placeholder="vos@empresa.com"></div>
+      <div class="fl"><label>Nivel que te interesa</label>
+        <select class="fi">
+          <option value="" disabled selected>Seleccioná una experiencia</option>
+          <option>Nivel 01 — Full Tech</option>
+          <option>Nivel 02 — Full RRSS / Social First</option>
+          <option>Nivel 03 — Experiencia / Fusión Transmedia</option>
+          <option>Todavía no lo sé, necesito orientación</option>
+        </select>
+      </div>
+      <div class="fl"><label>¿Cuándo es el evento?</label><input class="fi" type="text" placeholder="Ej: Diciembre 2025, sin fecha exacta aún"></div>
+      <button class="submit">Quiero mi evento inmersivo →</button>
+      <p class="form-note">Sin spam. Sin llamadas no solicitadas. Solo conversaciones reales.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="f-logo">Inmersive.co</div>
+  <div class="f-tagline">"Un evento. Dos dimensiones. Impacto infinito."</div>
+  <div class="f-links"><a href="#">Instagram</a><a href="#">LinkedIn</a><a href="#">WhatsApp</a></div>
+</footer>
+
+<script>
+/* CURSOR */
+const cg=document.getElementById('cg');
+let mx=innerWidth/2,my=innerHeight/2;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY});
+(function t(){cg.style.transform=`translate(${mx-400}px,${my-400}px)`;requestAnimationFrame(t)})();
+
+/* PARTICLES */
+const cv=document.getElementById('pc'),ctx=cv.getContext('2d');
+let W,H;
+function rz(){W=cv.width=innerWidth;H=cv.height=innerHeight}rz();
+window.addEventListener('resize',rz);
+const pts=Array.from({length:70},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*1.4+0.2,vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2,o:Math.random()*.4+.07,c:Math.random()>.55?'0,229,255':'139,92,246'}));
+function dp(){ctx.clearRect(0,0,W,H);pts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(${p.c},${p.o})`;ctx.fill();p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1});requestAnimationFrame(dp)}dp();
+
+/* REVEAL */
+const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in')})},{threshold:0.1});
+document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+
+/* FLOAT CTA */
+const fcta=document.getElementById('fcta');
+window.addEventListener('scroll',()=>fcta.classList.toggle('show',scrollY>500));
+
+/* TYPEWRITER */
+const words=['dos vidas simultáneas.','contenido que escala solo.','más que un evento: un legado.','lo que los demás solo organizan.'];
+let wi=0,ci=0,del=false;
+const tw=document.getElementById('tw');
+function type(){
+  if(!del){if(ci<words[wi].length){tw.textContent=words[wi].slice(0,++ci);setTimeout(type,70)}else{del=true;setTimeout(type,1800)}}
+  else{if(ci>0){tw.textContent=words[wi].slice(0,--ci);setTimeout(type,35)}else{del=false;wi=(wi+1)%words.length;setTimeout(type,400)}}
+}type();
+
+/* COUNTERS */
+function animCount(el){
+  const target=parseInt(el.dataset.target);
+  const prefix=el.dataset.prefix||'';
+  const suffix=el.dataset.suffix||'';
+  let cur=0;const step=Math.ceil(target/40);
+  const t=setInterval(()=>{cur=Math.min(cur+step,target);el.textContent=prefix+cur+suffix;if(cur>=target)clearInterval(t)},35);
+}
+const cobs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting&&!e.target.dataset.done){animCount(e.target);e.target.dataset.done='1'}})},{threshold:0.5});
+document.querySelectorAll('.counter').forEach(el=>cobs.observe(el));
+
+/* FAQ */
+document.querySelectorAll('.faq-q').forEach(q=>{
+  q.addEventListener('click',()=>{
+    const item=q.parentElement;
+    const wasOpen=item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));
+    if(!wasOpen) item.classList.add('open');
+  });
+});
+</script>
+</body>
+</html>
